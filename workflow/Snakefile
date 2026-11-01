@@ -1,0 +1,98 @@
+from pathlib import Path
+import re
+import sys
+from snakemake.utils import min_version
+
+min_version("9.27.0")
+ROOT = Path(workflow.basedir).parent
+if not config:
+    configfile: str(ROOT / "config/config.yaml")
+
+SAMPLES = config.get("samples")
+if not isinstance(SAMPLES, dict) or not SAMPLES:
+    raise ValueError("samples must be a nonempty mapping")
+for sample, item in SAMPLES.items():
+    if not isinstance(sample, str) or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]*", sample):
+        raise ValueError("Sample IDs must be safe directory names")
+    if not isinstance(item, dict) or not all(isinstance(item.get(k), str) and item[k] for k in ("consensus", "haplotypes")):
+        raise ValueError("Every sample requires consensus and haplotypes paths")
+    if "evidence" in item and not isinstance(item["evidence"], str):
+        raise ValueError("Evidence must be a path or an empty string")
+if type(config.get("synthetic_demo", False)) is not bool:
+    raise ValueError("synthetic_demo must be true or false")
+OUT = str(config.get("output_dir", "results"))
+if not OUT or "{" in OUT or "}" in OUT:
+    raise ValueError("output_dir must be a nonempty path without wildcard braces")
+FILES = ["population.cfasta", "consensus.fasta", "viral-cloud.html", "viral-cloud.json", "evidence.json", "manifest.json"]
+CODE = [str(p) for p in sorted((ROOT / "src/flupop").glob("*.py"))]
+DRIVER = str(ROOT / "workflow/scripts/stage.py")
+PYTHON = sys.executable
+
+wildcard_constraints:
+    sample="(?:" + "|".join(re.escape(s) for s in SAMPLES) + ")"
+
+rule all:
+    input:
+        expand(OUT + "/{sample}/report/{file}", sample=list(SAMPLES), file=FILES)
+
+rule validate_records:
+    input:
+        consensus=lambda w: SAMPLES[w.sample]["consensus"],
+        haplotypes=lambda w: SAMPLES[w.sample]["haplotypes"],
+        evidence=lambda w: [SAMPLES[w.sample]["evidence"]] if SAMPLES[w.sample].get("evidence") else [],
+        code=CODE,
+        driver=DRIVER
+    output:
+        records=OUT + "/{sample}/validated.json",
+        metrics=OUT + "/{sample}/benchmarks/validate.tsv"
+    params:
+        evidence=lambda w: SAMPLES[w.sample].get("evidence", ""),
+        demo=str(config.get("synthetic_demo", False)).lower()
+    threads: 1
+    resources: mem_mb=512
+    log: OUT + "/{sample}/logs/validate.log"
+    run:
+        import subprocess
+        with open(log[0], "w") as stream:
+            subprocess.run([PYTHON, input.driver, "--benchmark", output.metrics, "validate", "--consensus", input.consensus,
+                "--haplotypes", input.haplotypes, "--evidence", params.evidence,
+                "--sample", wildcards.sample, "--demo", params.demo, "--output", output[0]],
+                stdout=stream, stderr=subprocess.STDOUT, check=True)
+
+rule create_cfasta:
+    input:
+        records=OUT + "/{sample}/validated.json",
+        code=CODE,
+        driver=DRIVER
+    output:
+        cfasta=OUT + "/{sample}/population.cfasta",
+        metrics=OUT + "/{sample}/benchmarks/cfasta.tsv"
+    threads: 1
+    resources: mem_mb=512
+    log: OUT + "/{sample}/logs/cfasta.log"
+    run:
+        import subprocess
+        with open(log[0], "w") as stream:
+            subprocess.run([PYTHON, input.driver, "--benchmark", output.metrics, "cfasta", "--input", input.records,
+                "--output", output[0]], stdout=stream, stderr=subprocess.STDOUT, check=True)
+
+rule viral_cloud:
+    input:
+        records=OUT + "/{sample}/validated.json",
+        cfasta=OUT + "/{sample}/population.cfasta",
+        code=CODE,
+        driver=DRIVER
+    output:
+        reports=[OUT + "/{sample}/report/" + f for f in FILES],
+        metrics=OUT + "/{sample}/benchmarks/report.tsv"
+    params:
+        folder=lambda w: OUT + "/" + w.sample + "/report"
+    threads: 1
+    resources: mem_mb=512
+    log: OUT + "/{sample}/logs/report.log"
+    run:
+        import subprocess
+        with open(log[0], "w") as stream:
+            subprocess.run([PYTHON, input.driver, "--benchmark", output.metrics, "report", "--input", input.records,
+                "--cfasta", input.cfasta, "--output", params.folder],
+                stdout=stream, stderr=subprocess.STDOUT, check=True)

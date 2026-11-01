@@ -1,0 +1,15 @@
+{
+  "schema": "genomix-pipeline-v1-draft",
+  "id": "flupop",
+  "name": "FluPop",
+  "version": "0.1.0a1",
+  "manager": "Virologix",
+  "repository": "https://github.com/crackberryq/Viromics_FluPop",
+  "engine": "snakemake",
+  "engine_version": "9.27.0",
+  "environment": "flupop-snake",
+  "snakefile": "workflow/Snakefile",
+  "config": "config/config.yaml",
+  "capabilities": ["supplied_record_validation", "cfasta_packaging", "viral_cloud_reporting"],
+  "report": "{output_dir}/{sample}/report/viral-cloud.html"
+}

@@ -1,0 +1,8 @@
+# Paths are relative to the execution directory. Manager supplies absolute paths.
+output_dir: results
+synthetic_demo: true
+samples:
+  DEMO:
+    consensus: examples/consensus.fasta
+    haplotypes: examples/haplotypes.tsv
+    evidence: examples/evidence.json
