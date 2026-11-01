@@ -45,7 +45,7 @@ The TSV columns must be `segment`, `id`, `abundance`, `confidence`, `support`, `
 
 ## Manager boundary
 
-See [the integration contract](docs/manager-contract.md). Virologix 0.1.0a7 still bundles the earlier preview. This repository establishes the separate pipeline; switching the manager to install and launch this repository is a subsequent integration change. No claim of completed manager migration is made.
+See [the integration contract](docs/manager-contract.md). Virologix 0.1.0a8 installs this repository into a separate versioned environment and launches Snakemake externally. Use Pipelines → Install FluPop, then Run synthetic demo. The manager no longer bundles cFASTA or Viral Cloud processing code; older preview reports remain accessible.
 
 ## Tests
 

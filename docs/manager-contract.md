@@ -14,4 +14,4 @@ Write absolute input paths and an output_dir underneath the new run directory. S
 
 On success, reports are at `<output_dir>/<sample>/report/viral-cloud.html`; the complete report directory must be kept together for relative download links. Logs and benchmarks are siblings of the report directory. Existing Virologix preview runs remain separate legacy records and should stay readable.
 
-The initial manifest is `pipeline.json`. It declares capabilities and result paths, not a promise that the manager already consumes it. No raw-read analysis capability is advertised.
+The manifest is `pipeline.json`. Virologix 0.1.0a8 reads its pipeline identity, version, engine version and Snakefile declaration during installation. It uses a separate versioned Conda prefix for each installation and activates a replacement only after dependency checks pass. Standalone users may still use the named `flupop-snake` environment. No raw-read analysis capability is advertised.
